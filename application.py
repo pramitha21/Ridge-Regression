@@ -1,50 +1,42 @@
-from utils import load_model, preprocess_inputs
-import streamlit as st
+import pickle
+from flask import Flask,request,jsonify,render_template
 import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
-# Load Ridge model and scaler
-model = load_model('ridge.pkl')
-scaler = load_model('scaler.pkl')
+application = Flask(__name__)
+app=application
 
-# App title
-st.title("Algerian Forest Fire Risk Predictor")
+## import ridge regresor model and standard scaler pickle
+ridge_model=pickle.load(open('model/ridge.pkl','rb'))
+standard_scaler=pickle.load(open('model/scaler.pkl','rb'))
 
-# Description
-st.markdown("""
-This app uses a trained Ridge Regression model to predict the **Fire Weather Index (FWI)** or **Burned Area** (depending on your training target).
-Please enter the relevant feature values below:
-""")
+## Route for home page
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# Feature inputs
-feature_names = [
-    "Temperature",
-    "Relative Humidity",
-    "Wind Speed",
-    "Rainfall",
-    "Fine Fuel Moisture Code",
-    "Duff Moisture Code",
-    "Drought code"
-    "Initial Speed Index",
-    "Classes",
-    "Region"
-]
+@app.route('/predictdata',methods=['GET','POST'])
+def predict_datapoint():
+    if request.method=='POST':
+        Temperature=float(request.form.get('Temperature'))
+        RH = float(request.form.get('RH'))
+        Ws = float(request.form.get('Ws'))
+        Rain = float(request.form.get('Rain'))
+        FFMC = float(request.form.get('FFMC'))
+        DMC = float(request.form.get('DMC'))
+        ISI = float(request.form.get('ISI'))
+        Classes = float(request.form.get('Classes'))
+        Region = float(request.form.get('Region'))
 
-user_inputs = []
+        new_data_scaled=standard_scaler.transform([[Temperature,RH,Ws,Rain,FFMC,DMC,ISI,Classes,Region]])
+        result=ridge_model.predict(new_data_scaled)
 
-# Collect user inputs
-for feature in feature_names:
-    if feature in ["Classes", "Region"]:
-        # For binary categorical features: 0 or 1
-        value = st.radio(f"Select {feature}:", [0, 1])
+        return render_template('home.html',result=result[0])
+
     else:
-        value = st.number_input(f"Enter {feature}:", value=0.0, step=0.1)
-    user_inputs.append(value)
+        return render_template('home.html')
 
-# Preprocess inputs
-input_array = preprocess_inputs(user_inputs, scaler)
 
-# Predict
-if st.button("Predict"):
-    prediction = model.predict(input_array)
-    st.success(f"Predicted value: {prediction[0]:.2f}")
-    st.caption("Note: This prediction reflects the estimated Fire Weather Index or Burned Area based on the input features.")
+if __name__=="__main__":
+    app.run(host="0.0.0.0")
