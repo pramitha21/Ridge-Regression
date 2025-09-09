@@ -97,3 +97,4 @@ The dataset contains weather and fire-related attributes recorded between June a
 * Streamlit (web application deployment)
 
 ---
+# Triggering pipeline
